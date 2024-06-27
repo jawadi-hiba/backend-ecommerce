@@ -1,7 +1,8 @@
 import express from "express";
 import User from "../models/User.js";
-const router =  express.Router();
+const router = express.Router();
 import CryptoJS from "crypto-js"
+
 
 //register
 
@@ -9,15 +10,44 @@ router.post("/register", async (req, res) => {
   const newUser = new User({
     username: req.body.username,
     email: req.body.email,
-    password: crypto-js.AES.encrypt(req.body.password, process.env.pass_sec)  
-   });
+    password: CryptoJS.AES.encrypt(
+      req.body.password,
+       process.env.pass_sec 
+      ).toString(),
+  });
 
   try {
-      const savedUser = await newUser.save();
-      res.status(201).json(savedUser);
+    const savedUser = await newUser.save();
+    res.status(201).json(savedUser);
   } catch (err) {
     res.status(500).json(err);
   }
 });
+
+
+//login 
+
+router.post("/login", async (req, res) => {
+  try {
+    const user = await User.findOne({ username: req.body.username });
+    if (!user) {
+      return  res.status(401).json("wrong credentials!");
+    }
+
+    const hashedPassword = CryptoJS.AES.decrypt(
+      user.password,
+      process.env.pass_sec
+    );
+
+    const originalPassword = hashedPassword.toString(CryptoJS.env.utf8);
+    password !== req.body.password &&
+      res.status(401).json("wrong credentials!");
+   const { password, ...others } = user;
+      res.status(200).json(others);
+  } catch (err) {
+    res.status(500).json(err);
+  }
+
+})
 
 export default router;
