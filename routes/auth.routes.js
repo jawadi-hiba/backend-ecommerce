@@ -2,7 +2,7 @@ import express from "express";
 import User from "../models/User.js";
 const router = express.Router();
 import CryptoJS from "crypto-js"
-
+import jwt from "jsonwebtoken"
 
 //register
 
@@ -42,6 +42,9 @@ router.post("/login", async (req, res) => {
     const originalPassword = hashedPassword.toString(CryptoJS.env.utf8);
     password !== req.body.password &&
       res.status(401).json("wrong credentials!");
+      const accessToken = jwt.sign({
+        id:user._id
+      })
    const { password, ...others } = user;
       res.status(200).json(others);
   } catch (err) {
