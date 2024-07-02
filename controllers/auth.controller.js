@@ -1,11 +1,18 @@
+import { secret } from "../config/auth.config.js"
 import User from "../models/User.js";
+// const user = db.user;
+// const Role = db.role;
+import bcrypt from 'crypto-js';
+import jwt from "jsonwebtoken";
 
 
+
+//singup
 export const registerUser = async (req, res) => {
   const newUser = new User({
     username: req.body.username,
     email: req.body.email,
-    password: req.body.password,
+    password: bcrypt.hashSync(req.body.password, 8)
   });
 
   try {
@@ -14,10 +21,11 @@ export const registerUser = async (req, res) => {
   } catch (err) {
     res.status(500).json(err);
   }
+  res.send({ message: "User was registered successfully!" });
+
 };
 
-//login
-
+//signin 
 export const loginUser = async (req, res) => {
   try {
     const user = await User.findOne({ username: req.body.username });
@@ -43,7 +51,3 @@ export const loginUser = async (req, res) => {
   }
 
 }
-
-
-// export const loginUser = (req, res) => {
-//     res.json({ user: "user" });
