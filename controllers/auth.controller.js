@@ -13,11 +13,11 @@ export const registerUser = async (req, res) => {
   const newUser = new User({
     username: req.body.username,
     email: req.body.email,
-    password: bcrypt.hashSync(req.body.password, 8)
+    password: bcrypt.hashSync(req.body.password, 10)
   });
-  user.save((err, user) => {
+  newUser.save((err, user) => {
     if (err) {
-      res.status(500).send({ message: err });
+      res.status(500).send({ message: err.message });
       return;
     }
 
@@ -28,14 +28,14 @@ export const registerUser = async (req, res) => {
         },
         (err, roles) => {
           if (err) {
-            res.status(500).send({ message: err });
+            res.status(500).send({ message: err.message });
             return;
           }
 
           user.roles = roles.map(role => role._id);
           user.save(err => {
             if (err) {
-              res.status(500).send({ message: err });
+              res.status(500).send({ message: err.message });
               return;
             }
 
@@ -68,27 +68,49 @@ export const registerUser = async (req, res) => {
 
 //signin 
 export const loginUser = async (req, res) => {
-  try {
-    const user = await User.findOne({ username: req.body.username });
-    if (!user) {
-      return res.status(401).json("wrong credentials!");
-    }
 
-    const hashedPassword = CryptoJS.AES.decrypt(
-      user.password,
-      process.env.pass_sec
-    );
+  const user = await User.findOne({ username: req.body.username })
+    .populate("role", "-__v")
+    .exec((err, user) => {
+      if (err) {
+        res.status(500).send({ message: err.message });
+        return;
+      }
+      if (!user) {
+        return res.status(404).send({ message: "User Not found." });
+      }
 
-    const originalPassword = hashedPassword.toString(CryptoJS.env.utf8);
-    password !== req.body.password &&
-      res.status(401).json("wrong credentials!");
-    const accessToken = jwt.sign({
-      id: user._id
-    })
-    const { password, ...others } = user;
-    res.status(200).json(others);
-  } catch (err) {
-    res.status(500).json(err);
-  }
+      var passwordIsValid = bcrypt.compareSync(
+        req.body.password,
+        user.password
+      );
 
-}
+      if (!passwordIsValid) {
+        return res.status(401).send({
+          accessToken: null,
+          message: "invalid password "
+        });
+      }
+      const token = jwt.signin({ id: user.id },
+        config.secret,
+        {
+          algorithm: 'HS256',
+          allowInsecureKeySizes: true,
+          expiresIn: 86400, //24hours
+        }
+      );
+
+      var autorities = [];
+      for (let i = 0; i < user.roles.length; i++) {
+        authorities.push("ROLE_" + user.roles[i].name.toUpperCase());
+      }
+
+      res.status(200).send({
+        id: user_id,
+        username: user.username,
+        email: user.email,
+        roles: authorities,
+        accessToken: token
+      });
+    });
+};
