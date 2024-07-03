@@ -1,3 +1,2 @@
-module.exports = {
-    secret: "ecommerce-secret-key"
-}
+
+export const secret = "bezkoder-secret-key";

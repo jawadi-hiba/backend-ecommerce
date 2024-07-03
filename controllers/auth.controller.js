@@ -1,49 +1,116 @@
+import { secret } from "../config/auth.config.js"
+import Role from "../models/Role.js";
 import User from "../models/User.js";
+// const user = db.user;
+// const Role = db.role;
+import bcrypt from 'crypto-js';
+import jwt from "jsonwebtoken";
 
 
+
+//singup
 export const registerUser = async (req, res) => {
   const newUser = new User({
     username: req.body.username,
     email: req.body.email,
-    password: req.body.password,
+    password: bcrypt.hashSync(req.body.password, 10)
   });
-
-  try {
-    const savedUser = await newUser.save();
-    res.status(201).json(savedUser);
-  } catch (err) {
-    res.status(500).json(err);
-  }
-};
-
-//login
-
-export const loginUser = async (req, res) => {
-  try {
-    const user = await User.findOne({ username: req.body.username });
-    if (!user) {
-      return res.status(401).json("wrong credentials!");
+  newUser.save((err, user) => {
+    if (err) {
+      res.status(500).send({ message: err.message });
+      return;
     }
 
-    const hashedPassword = CryptoJS.AES.decrypt(
-      user.password,
-      process.env.pass_sec
-    );
+    if (req.body.roles) {
+      Role.find(
+        {
+          name: { $in: req.body.roles }
+        },
+        (err, roles) => {
+          if (err) {
+            res.status(500).send({ message: err.message });
+            return;
+          }
 
-    const originalPassword = hashedPassword.toString(CryptoJS.env.utf8);
-    password !== req.body.password &&
-      res.status(401).json("wrong credentials!");
-    const accessToken = jwt.sign({
-      id: user._id
-    })
-    const { password, ...others } = user;
-    res.status(200).json(others);
-  } catch (err) {
-    res.status(500).json(err);
-  }
+          user.roles = roles.map(role => role._id);
+          user.save(err => {
+            if (err) {
+              res.status(500).send({ message: err.message });
+              return;
+            }
 
-}
+            res.send({ message: "User was registered successfully!" });
+          });
+        }
+      );
+    } else {
+      Role.findOne({ name: "user" }, (err, role) => {
+        if (err) {
+          res.status(500).send({ message: err });
+          return;
+        }
+
+        user.roles = [role._id];
+        user.save(err => {
+          if (err) {
+            res.status(500).send({ message: err });
+            return;
+          }
+
+          res.send({ message: "User was registered successfully!" });
+        });
+      });
+    }
+  });
+};
 
 
-// export const loginUser = (req, res) => {
-//     res.json({ user: "user" });
+
+//signin 
+export const loginUser = async (req, res) => {
+
+  const user = await User.findOne({ username: req.body.username })
+    .populate("role", "-__v")
+    .exec((err, user) => {
+      if (err) {
+        res.status(500).send({ message: err.message });
+        return;
+      }
+      if (!user) {
+        return res.status(404).send({ message: "User Not found." });
+      }
+
+      var passwordIsValid = bcrypt.compareSync(
+        req.body.password,
+        user.password
+      );
+
+      if (!passwordIsValid) {
+        return res.status(401).send({
+          accessToken: null,
+          message: "invalid password "
+        });
+      }
+      const token = jwt.signin({ id: user.id },
+        config.secret,
+        {
+          algorithm: 'HS256',
+          allowInsecureKeySizes: true,
+          expiresIn: 86400, //24hours
+        }
+      );
+
+      var autorities = [];
+      for (let i = 0; i < user.roles.length; i++) {
+        authorities.push("ROLE_" + user.roles[i].name.toUpperCase());
+      }
+
+      res.status(200).send({
+        id: user_id,
+        username: user.username,
+        email: user.email,
+        roles: authorities,
+        accessToken: token
+      });
+    });
+};

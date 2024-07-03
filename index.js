@@ -25,38 +25,19 @@ app.use("/api/auth", authRoute);
 
 //initial() function helps us to create 3 important rows in roles collection.
 
-function initial() {
-    Role.estimatedDocumentCount((err, count) => {
-        if (!err && count === 0) {
-            new Role({
-                name: "user"
-            }).save(err => {
-                if (err) {
-                    console.log("error", err);
-                }
+async function initial() {
+    try {
+        const count = await Role.estimatedDocumentCount();
+        if (count === 0) {
+            const userRole = new Role({ name: "user" });
+            const adminRole = new Role({ name: "admin" });
+            const superadminRole = new Role({ name: "superadmin" });
 
-                console.log("added 'user' to roles collection");
-            });
-
-            new Role({
-                name: "moderator"
-            }).save(err => {
-                if (err) {
-                    console.log("error", err);
-                }
-
-                console.log("added 'moderator' to roles collection");
-            });
-
-            new Role({
-                name: "admin"
-            }).save(err => {
-                if (err) {
-                    console.log("error", err);
-                }
-
-                console.log("added 'admin' to roles collection");
-            });
+            await userRole.save();
+            await adminRole.save();
+            await superadminRole.save();
         }
-    });
+    } catch (error) {
+        console.error(error);
+    }
 }
