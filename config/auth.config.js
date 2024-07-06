@@ -1,2 +1,3 @@
+const config = { secret: "bezkoder-secret-key" };
 
-export const secret = "bezkoder-secret-key";
+export default config;

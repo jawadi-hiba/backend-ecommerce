@@ -1,110 +1,70 @@
-import { secret } from "../config/auth.config.js"
-import Role from "../models/Role.model.js";
-import User from "../models/User.js";
-// const user = db.user;
-// const Role = db.role;
-import bcrypt from 'crypto-js';
+import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
+import config from "../config/auth.config.js";
+import Role from "../models/Role.js";
+import User from "../models/User.js";
 
-
-
-// signup
 export const registerUser = async (req, res) => {
   try {
+    const hashedPassword = await bcrypt.hash(req.body.password, 10);
     const newUser = new User({
       username: req.body.username,
       email: req.body.email,
-      password: bcrypt.hashSync(req.body.password, 10)
+      password: hashedPassword,
     });
 
-    newUser.save(async (err, user) => {
-      if (err) {
-        res.status(500).send({ message: err.message });
-        return;
-      }
+    const savedUser = await newUser.save();
 
-      if (req.body.roles) {
-        Role.find(
-          {
-            name: { $in: req.body.roles }
-          },
-          (err, roles) => {
-            if (err) {
-              res.status(500).send({ message: err.message });
-              return;
-            }
+    if (req.body.role) {
+      const role = await Role.findOne({ name: req.body.role });
+      savedUser.role = role._id;
+    }
 
-            user.roles = roles.map(role => role._id);
-            user.save(err => {
-              if (err) {
-                res.status(500).send({ message: err.message });
-                return;
-              }
+    if (!req.body.role) {
+      const defaultRole = await Role.findOne({ name: "user" });
+      savedUser.role = defaultRole._id;
+    }
 
-              res.send({ message: "User was registered successfully!" });
-            });
-          }
-        );
-      } else {
-        Role.findOne({ name: "user" }, (err, role) => {
-          if (err) {
-            res.status(500).send({ message: err.message });
-            return;
-          }
-
-          user.roles = [role._id];
-          user.save(err => {
-            if (err) {
-              res.status(500).send({ message: err.message });
-              return;
-            }
-
-            res.send({ message: "User was registered successfully!" });
-          });
-        });
-      }
-    });
+    const newuser = await savedUser.save();
+    res.send({ message: "User was registered successfully!", user: newuser });
   } catch (err) {
     res.status(500).send({ message: err.message });
   }
 };
 
-// signin
 export const loginUser = async (req, res) => {
   try {
-    const user = await User.findOne({ username: req.body.username }).populate("roles", "-__v");
-
+    const user = await User.findOne({
+      username: req.body.username,
+    }).populate("role", "-__v");
     if (!user) {
       return res.status(404).send({ message: "User Not found." });
     }
 
-    const passwordIsValid = bcrypt.compareSync(req.body.password, user.password);
+    const passwordIsValid = bcrypt.compareSync(
+      req.body.password,
+      user.password
+    );
 
     if (!passwordIsValid) {
       return res.status(401).send({
         accessToken: null,
-        message: "Invalid password!"
+        message: "Invalid password!",
       });
     }
 
-    const token = jwt.sign(
-      { id: user._id },
-      config.secret,
-      {
-        algorithm: 'HS256',
-        allowInsecureKeySizes: true,
-        expiresIn: 86400 // 24 hours
-      }
-    );
-
-    const authorities = user.roles.map(role => "ROLE_" + role.name.toUpperCase());
+    const token = jwt.sign({ id: user._id }, config.secret, {
+      algorithm: "HS256",
+      allowInsecureKeySizes: true,
+      expiresIn: 86400, // 24 hours
+    });
 
     res.status(200).send({
       id: user._id,
       username: user.username,
       email: user.email,
-      roles: authorities,
-      accessToken: token
+      role: user.role.name,
+      accessToken: token,
     });
   } catch (err) {
     res.status(500).send({ message: err.message });

@@ -1,7 +1,5 @@
-import authjwt from "./authjwt"
-import verifySignUp from "./verifySignUp"
+import authjwt from "./authjwt";
 
 module.exports = {
-    authjwt,
-    verifySignUp
+  authjwt,
 };

@@ -1,11 +1,10 @@
 import express from "express";
-import { getUsers } from "../controllers/user.controller.js";
+import authJwt from "../middlewares/authjwt.js";
 
-const router =  express.Router();
+const router = express.Router();
 
-router.get("/", (req, res) => { 
-    res.json({ name: "user" });
-  })
+router.get("/", authJwt.verifyToken, authJwt.isSuperAdmin, (req, res) => {
+  res.json({ name: "user" });
+});
 
-
-export default router; 
+export default router;
